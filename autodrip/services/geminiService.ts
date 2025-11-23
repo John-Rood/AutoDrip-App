@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 // Prompt defined by user requirements
-const DRIP_PROMPT = "Remake this image into a 10 out of 10 for instagram. Upgrade its sex appeal to the opposite sex. Add Aura and rizz\n\n";
+const DRIP_PROMPT = "Remake this image into a 10 out of 10 for instagram. Add aura and rizz but do not put an actual aura in pixels, its metaphorical only. Keep the photo realistic while upgrading sex appeal\n";
 
 export const checkApiKey = async (): Promise<boolean> => {
   if (window.aistudio && window.aistudio.hasSelectedApiKey) {

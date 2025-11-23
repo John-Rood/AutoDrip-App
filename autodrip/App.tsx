@@ -76,7 +76,7 @@ const App: React.FC = () => {
 
     try {
       // Pass temperature 1 for "Redo"
-      const generatedImageBase64 = await generateDripImage(resultData.original, sourceMime, .2);
+      const generatedImageBase64 = await generateDripImage(resultData.original, sourceMime, .05);
       
       setResultData({
         ...resultData,

@@ -9,13 +9,41 @@ interface ComparisonViewProps {
 }
 
 export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, onRedo }) => {
-  const downloadImage = () => {
-    const link = document.createElement('a');
-    link.href = data.result;
-    link.download = `autodrip-${Date.now()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async () => {
+    try {
+      // 1. Convert Base64 to a File object
+      const response = await fetch(data.result);
+      const blob = await response.blob();
+      const file = new File([blob], `autodrip-${Date.now()}.png`, { type: 'image/png' });
+
+      // 2. Try Web Share API (Mobile native "Save to Photos" support)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'AutoDrip Result',
+            text: 'Just upgraded my aura with AutoDrip.',
+          });
+          return; // Success, exit
+        } catch (error) {
+          // Ignore AbortError (user cancelled share sheet)
+          if ((error as Error).name === 'AbortError') return;
+          console.error('Share failed, falling back to download:', error);
+        }
+      }
+
+      // 3. Fallback to anchor download (Desktop / Unsupported browsers)
+      const link = document.createElement('a');
+      link.href = data.result;
+      link.download = `autodrip-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (err) {
+      console.error('Download process failed:', err);
+      alert("Could not save image. Please try long-pressing the image to save.");
+    }
   };
 
   return (
@@ -36,7 +64,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, o
           <img 
             src={data.original} 
             alt="Original" 
-            className="w-full h-full object-cover filter grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" 
+            className="w-full h-auto block filter grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" 
           />
         </div>
 
@@ -48,7 +76,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, o
           <img 
             src={data.result} 
             alt="Upgraded" 
-            className="w-full h-full object-cover" 
+            className="w-full h-auto block" 
           />
           {/* Shine effect */}
           <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
@@ -56,11 +84,11 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, o
       </div>
 
       <div className="flex flex-col md:flex-row justify-center gap-4">
-        <Button onClick={downloadImage} className="w-full md:w-auto min-w-[200px]">
-          Download Image
+        <Button onClick={handleDownload} className="w-full md:w-auto min-w-[200px]">
+          Save Image
         </Button>
         <Button variant="glass" onClick={onRedo} className="w-full md:w-auto min-w-[200px]">
-          Redo
+          Redo Magic
         </Button>
         <Button variant="secondary" onClick={onReset} className="w-full md:w-auto">
           Try Another Photo
