@@ -9,9 +9,6 @@ export const Header: React.FC = () => {
         </h1>
       </div>
       <div className="pointer-events-auto hidden md:block">
-        <span className="text-xs font-mono text-zinc-500 bg-zinc-900/50 px-3 py-1 rounded-full border border-zinc-800">
-          POWERED BY GEMINI 3 PRO
-        </span>
       </div>
     </header>
   );

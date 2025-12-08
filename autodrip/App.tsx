@@ -5,6 +5,7 @@ import { UploadZone } from './components/UploadZone';
 import { ProcessingState } from './components/ProcessingState';
 import { ComparisonView } from './components/ComparisonView';
 import { Button } from './components/Button';
+import { LevelSlider } from './components/LevelSlider';
 import { checkApiKey, promptForApiKey, generateDripImage } from './services/geminiService';
 import { AppState, GeneratedImage } from './types';
 
@@ -12,6 +13,7 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState>(AppState.INITIAL);
   const [resultData, setResultData] = useState<GeneratedImage | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [dripLevel, setDripLevel] = useState<number>(2);
 
   useEffect(() => {
     // Check initial key status on mount
@@ -44,7 +46,7 @@ const App: React.FC = () => {
       const mimeType = file.type;
 
       try {
-        const generatedImageBase64 = await generateDripImage(base64, mimeType, 0);
+        const generatedImageBase64 = await generateDripImage(base64, mimeType, 0, dripLevel);
         setResultData({
           original: base64,
           result: generatedImageBase64,
@@ -75,8 +77,9 @@ const App: React.FC = () => {
     const sourceMime = matches ? matches[1] : 'image/jpeg';
 
     try {
-      // Pass temperature 1 for "Redo"
-      const generatedImageBase64 = await generateDripImage(resultData.original, sourceMime, .05);
+      // Pass temperature 1 for "Redo" to increase variance
+      // Pass current dripLevel
+      const generatedImageBase64 = await generateDripImage(resultData.original, sourceMime, 1, dripLevel);
       
       setResultData({
         ...resultData,
@@ -122,12 +125,18 @@ const App: React.FC = () => {
 
         {state === AppState.IDLE && (
           <div className="w-full flex flex-col items-center animate-fade-in-up">
-            <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">Upload Source Material</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-center">Upload Source Material</h2>
             {errorMsg && (
                 <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 text-red-400 rounded-xl">
                     {errorMsg}
                 </div>
             )}
+            
+            {/* Level Slider for Initial Upload */}
+            <div className="w-full max-w-xl mb-4">
+              <LevelSlider level={dripLevel} setLevel={setDripLevel} />
+            </div>
+
             <UploadZone onFileSelect={handleFileSelect} />
           </div>
         )}
@@ -135,7 +144,13 @@ const App: React.FC = () => {
         {state === AppState.PROCESSING && <ProcessingState />}
 
         {state === AppState.SUCCESS && resultData && (
-          <ComparisonView data={resultData} onReset={handleReset} onRedo={handleRedo} />
+          <ComparisonView 
+            data={resultData} 
+            onReset={handleReset} 
+            onRedo={handleRedo} 
+            currentLevel={dripLevel}
+            onLevelChange={setDripLevel}
+          />
         )}
 
         {state === AppState.ERROR && (

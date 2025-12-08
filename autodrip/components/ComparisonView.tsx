@@ -1,14 +1,23 @@
 import React from 'react';
 import { Button } from './Button';
+import { LevelSlider } from './LevelSlider';
 import { GeneratedImage } from '../types';
 
 interface ComparisonViewProps {
   data: GeneratedImage;
   onReset: () => void;
   onRedo: () => void;
+  currentLevel: number;
+  onLevelChange: (level: number) => void;
 }
 
-export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, onRedo }) => {
+export const ComparisonView: React.FC<ComparisonViewProps> = ({ 
+  data, 
+  onReset, 
+  onRedo, 
+  currentLevel, 
+  onLevelChange 
+}) => {
   const handleDownload = async () => {
     try {
       // 1. Convert Base64 to a File object
@@ -16,8 +25,13 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, o
       const blob = await response.blob();
       const file = new File([blob], `autodrip-${Date.now()}.png`, { type: 'image/png' });
 
+      // Check for mobile device (heuristic)
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
       // 2. Try Web Share API (Mobile native "Save to Photos" support)
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      // We explicitly check isMobile because desktop browsers (like Safari) might support navigator.share
+      // but users typically expect a direct file download on desktop.
+      if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
@@ -55,9 +69,9 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, o
         <p className="text-zinc-400">Your social credit score just went up.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8 mb-12">
+      <div className="grid md:grid-cols-2 gap-8 mb-8">
         {/* Original */}
-        <div className="relative group rounded-3xl overflow-hidden shadow-2xl border border-zinc-800">
+        <div className="relative group rounded-3xl overflow-hidden shadow-2xl border border-zinc-800 bg-zinc-900">
           <div className="absolute top-4 left-4 bg-black/60 backdrop-blur px-4 py-1 rounded-full text-xs font-bold text-white z-10">
             ORIGINAL
           </div>
@@ -69,7 +83,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, o
         </div>
 
         {/* Result */}
-        <div className="relative rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(124,58,237,0.3)] border border-violet-500/50">
+        <div className="relative rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(124,58,237,0.3)] border border-violet-500/50 bg-zinc-900">
            <div className="absolute top-4 left-4 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-1 rounded-full text-xs font-bold text-white z-10 shadow-lg">
             UPGRADED
           </div>
@@ -81,6 +95,11 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({ data, onReset, o
           {/* Shine effect */}
           <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
         </div>
+      </div>
+
+      {/* Control Panel */}
+      <div className="max-w-xl mx-auto mb-8">
+         <LevelSlider level={currentLevel} setLevel={onLevelChange} />
       </div>
 
       <div className="flex flex-col md:flex-row justify-center gap-4">

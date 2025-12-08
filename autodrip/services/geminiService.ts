@@ -1,7 +1,16 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Prompt defined by user requirements
-const DRIP_PROMPT = "Remake this image into a 10 out of 10 for instagram. Add aura and rizz but do not put an actual aura in pixels, its metaphorical only. Keep the photo realistic while upgrading sex appeal\n";
+// Prompt levels defined by user requirements. 
+// Currently identical, placeholders for future customization.
+const BASE_PROMPT = "Remake this image into a 10 out of 10. Add aura and rizz but do not put an actual aura in pixels, its metaphorical only. Upgrade appeal. Keep the photo realistic. Keep people's faces looking just like them. Do not change thier expression, only maximize their look\n";
+const BASE_PROMPT_2 = "Remake this image into a 10 out of 10 for instagram. Keep faces looking like the same person. Add aura and rizz but do not put an actual aura in pixels, its metaphorical only. Keep the photo realistic while upgrading sex appeal\n";
+const BASE_PROMPT_3 = "Remake this image into a 10 out of 10 for instagram. Keep faces looking like the same person. Add Aura and rizz but do not put an actual aura in pixels, its metaphorical only. Damatically upgrade sex appeal and change or upgrade the background in the photo if appropriate\n";
+
+const DRIP_PROMPTS: Record<number, string> = {
+  1: BASE_PROMPT,
+  2: BASE_PROMPT_2,
+  3: BASE_PROMPT_3
+};
 
 export const checkApiKey = async (): Promise<boolean> => {
   if (window.aistudio && window.aistudio.hasSelectedApiKey) {
@@ -18,8 +27,47 @@ export const promptForApiKey = async (): Promise<void> => {
   }
 };
 
-export const generateDripImage = async (base64Image: string, mimeType: string, temperature: number = 0): Promise<string> => {
+const getImageDimensions = (base64: string): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.width, height: img.height });
+    img.onerror = (err) => reject(err);
+    img.src = base64;
+  });
+};
+
+const getBestAspectRatio = (width: number, height: number): string => {
+  const ratio = width / height;
+  const supportedRatios = [
+    { str: "1:1", val: 1.0 },
+    { str: "3:4", val: 0.75 },
+    { str: "4:3", val: 1.3333 },
+    { str: "9:16", val: 0.5625 },
+    { str: "16:9", val: 1.7778 },
+  ];
+
+  // Find closest ratio
+  const closest = supportedRatios.reduce((prev, curr) => {
+    return Math.abs(curr.val - ratio) < Math.abs(prev.val - ratio) ? curr : prev;
+  });
+
+  return closest.str;
+};
+
+export const generateDripImage = async (
+  base64Image: string, 
+  mimeType: string, 
+  temperature: number = 0,
+  level: number = 1
+): Promise<string> => {
   try {
+    // Detect aspect ratio from input image
+    const { width, height } = await getImageDimensions(base64Image);
+    const targetAspectRatio = getBestAspectRatio(width, height);
+    
+    // Select prompt based on level
+    const prompt = DRIP_PROMPTS[level] || DRIP_PROMPTS[1];
+
     // Always init new instance to capture latest env key
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
@@ -30,7 +78,7 @@ export const generateDripImage = async (base64Image: string, mimeType: string, t
       model: 'gemini-3-pro-image-preview',
       contents: {
         parts: [
-          { text: DRIP_PROMPT },
+          { text: prompt },
           {
             inlineData: {
               mimeType: mimeType,
@@ -42,13 +90,7 @@ export const generateDripImage = async (base64Image: string, mimeType: string, t
       config: {
         temperature: temperature,
         imageConfig: {
-          aspectRatio: "1:1", // Defaulting to square for Insta, though we could detect. 
-          // Keeping it simple as per "10/10 for instagram" implies 1:1 or 4:5 usually.
-          // Let's stick to 1:1 or allow model default? 
-          // The prompt guidance says "aspectRatio: Changes the aspect ratio... Default is 1:1".
-          // Let's explicitly request 1:1 for that classic Insta vibe unless the input is wildly different.
-          // Actually, let's leave aspect ratio to default to respect the input composition usually, 
-          // but specifically for 'gemini-3-pro-image-preview' we can specify imageSize.
+          aspectRatio: targetAspectRatio, 
           imageSize: "1K"
         }
       }
@@ -68,7 +110,11 @@ export const generateDripImage = async (base64Image: string, mimeType: string, t
     console.error("Gemini Generation Error:", error);
     
     // Handle specific API key error to prompt re-selection
-    if (error.message && error.message.includes("Requested entity was not found")) {
+    if (
+        (error.message && error.message.includes("Requested entity was not found")) ||
+        (error.message && error.message.includes("API key not valid")) ||
+        (error.status === 400 && error.message.includes("API key"))
+    ) {
       throw new Error("API_KEY_INVALID");
     }
     
